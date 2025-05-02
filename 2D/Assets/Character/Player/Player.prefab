@@ -16,9 +16,10 @@ GameObject:
   - component: {fileID: 2544438266016454831}
   - component: {fileID: 4732141589411519991}
   - component: {fileID: 2641572966746002296}
+  - component: {fileID: 6620174578301472813}
   m_Layer: 7
   m_Name: Player
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -76,8 +77,8 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
+  m_SortingLayerID: 1781620541
+  m_SortingLayer: 1
   m_SortingOrder: 0
   m_Sprite: {fileID: 21300000, guid: 03037e8a966371d46ba6dc67add5a19e, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -132,9 +133,10 @@ MonoBehaviour:
   walkSpeed: 5
   runSpeed: 8
   airWalkSpeed: 3
-  JumpImpulse: 10
-  _isMoving: 0
-  _isRunning: 0
+  jumpImpulse: 10
+  fallMultiplier: 2.5
+  lowJumpMultiplier: 2
+  coyoteTime: 0.2
 --- !u!114 &3918616003510675948
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -361,3 +363,16 @@ MonoBehaviour:
   _isGrounded: 0
   _isOnWall: 0
   _isOnCeiling: 0
+--- !u!114 &6620174578301472813
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2675014107873805401}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fbfe161b7a351f041bdf422a19eca88e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  startingHealth: 0

@@ -1,6 +1,4 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -10,81 +8,41 @@ public class PlayerController : MonoBehaviour
     public float walkSpeed = 5f;
     public float runSpeed = 8f;
     public float airWalkSpeed = 3f;
-    public float JumpImpulse = 10f;
-    private Vector2 moveInput;
-    TouchingDirection touchingDirection;
+    public float jumpImpulse = 10f;
 
-    public float CurrentMoveSpeed { get
+    [Header("Jump Settings")]
+    [SerializeField] private float fallMultiplier = 2.5f;
+    [SerializeField] private float lowJumpMultiplier = 2f;
+    [SerializeField] private float coyoteTime = 0.2f;
+    private float coyoteCounter;
+
+    private Vector2 moveInput;
+    private bool isAttacking = false;
+    private bool isFacingRight = true;
+    private bool isMoving;
+    private bool isRunning;
+    private bool isDead = false;
+
+    private TouchingDirection touchingDirection;
+    private Rigidbody2D rb;
+    private Animator animator;
+
+    public bool CanMove => !isAttacking && !isDead && animator.GetBool(AnimationStrings.canMove);
+
+    public float CurrentMoveSpeed
+    {
+        get
         {
             if (CanMove)
             {
-                if (IsMoving && !touchingDirection.IsOnWall)
+                if (isMoving && !touchingDirection.IsOnWall)
                 {
-                    if (touchingDirection.IsGrounded)
-                    {
-                        if (IsRunning)
-                        {
-                            return runSpeed;
-                        }
-                        else
-                        {
-                            return walkSpeed;
-                        }
-                    }
-                    else
-                    {
-                        //Air Movere
-                        return airWalkSpeed;
-                    }
+                    return touchingDirection.IsGrounded ? (isRunning ? runSpeed : walkSpeed) : airWalkSpeed;
                 }
-                else
-                {
-                    //idle speed is 0
-                    return 0;
-                }
-            } else
-            { return 0; }
-
-        }}
-
-    [SerializeField] private bool _isMoving = false;
-    public bool IsMoving
-    {
-        get => _isMoving;
-        private set
-        {
-            _isMoving = value;
-            animator.SetBool(AnimationStrings.IsMoving, value);
-        }
-    }
-
-    [SerializeField] private bool _isRunning = false;
-    public bool IsRunning
-    {
-        get => _isRunning;
-        set
-        {
-            _isRunning = value;
-            animator.SetBool(AnimationStrings.IsRunning, value);
-        }
-    }
-
-    private bool _isFacingRight = true;
-    public bool IsFacingRight
-    {
-        get => _isFacingRight;
-        private set
-        {
-            if (_isFacingRight != value)
-            {
-                transform.localScale = new Vector3(Mathf.Sign(moveInput.x), 1, 1);
             }
-            _isFacingRight = value;
+            return 0;
         }
     }
-
-    private Rigidbody2D rb;
-    private Animator animator;
 
     private void Awake()
     {
@@ -93,63 +51,136 @@ public class PlayerController : MonoBehaviour
         touchingDirection = GetComponent<TouchingDirection>();
     }
 
-    private void FixedUpdate()
+    private void Update()
     {
-        rb.velocity = new Vector2(moveInput.x * CurrentMoveSpeed, rb.velocity.y);
+        if (isDead) return;
+
+        if (touchingDirection.IsGrounded)
+        {
+            coyoteCounter = coyoteTime;
+        }
+        else
+        {
+            coyoteCounter -= Time.deltaTime;
+        }
+
+        // Jump gravity modifier
+        if (rb.velocity.y < 0)
+        {
+            rb.velocity += Vector2.up * Physics2D.gravity.y * (fallMultiplier - 1) * Time.deltaTime;
+        }
+        else if (rb.velocity.y > 0 && !Input.GetButton("Jump"))
+        {
+            rb.velocity += Vector2.up * Physics2D.gravity.y * (lowJumpMultiplier - 1) * Time.deltaTime;
+        }
+    }
+
+    private void LateUpdate()
+    {
+        if (isDead) return;
+
+        if (!isAttacking)
+        {
+            rb.velocity = new Vector2(moveInput.x * CurrentMoveSpeed, rb.velocity.y);
+        }
+        else
+        {
+            rb.velocity = new Vector2(0, rb.velocity.y);
+        }
 
         animator.SetFloat(AnimationStrings.yVelocity, rb.velocity.y);
     }
 
     public void OnMove(InputAction.CallbackContext context)
     {
+        if (isAttacking || isDead) return;  // Cek apakah karakter mati sebelum melanjutkan
+
         moveInput = context.ReadValue<Vector2>();
-        IsMoving = moveInput != Vector2.zero;
+        isMoving = moveInput != Vector2.zero;
+        animator.SetBool(AnimationStrings.IsMoving, isMoving);
         SetFacingDirection(moveInput);
     }
 
     private void SetFacingDirection(Vector2 moveInput)
     {
-        if (moveInput.x > 0 && !IsFacingRight)
+        if (!CanMove) return;
+
+        if (moveInput.x > 0 && !isFacingRight)
         {
-            IsFacingRight = true;
+            Flip();
         }
-        else if (moveInput.x < 0 && IsFacingRight)
+        else if (moveInput.x < 0 && isFacingRight)
         {
-            IsFacingRight = false;
+            Flip();
         }
     }
 
-    public bool CanMove { get 
-        {
-            return animator.GetBool(AnimationStrings.canMove);
-        } }
+    private void Flip()
+    {
+        isFacingRight = !isFacingRight;
+        transform.localScale = new Vector3(isFacingRight ? 1 : -1, 1, 1);
+    }
 
     public void OnRun(InputAction.CallbackContext context)
     {
+        if (isAttacking || isDead) return;  // Cek apakah karakter mati sebelum melanjutkan
+
         if (context.started)
         {
-            IsRunning = true;
+            isRunning = true;
         }
         else if (context.canceled)
         {
-            IsRunning = false;
+            isRunning = false;
         }
+
+        animator.SetBool(AnimationStrings.IsRunning, isRunning);
     }
 
     public void OnJump(InputAction.CallbackContext context)
     {
-        if (context.started && touchingDirection.IsGrounded && CanMove)
+        if (isDead) return;  // Cek apakah karakter mati sebelum melanjutkan
+
+        if (context.started && coyoteCounter > 0 && CanMove)
         {
             animator.SetTrigger(AnimationStrings.JumpTrigger);
-            rb.velocity = new Vector2(rb.velocity.x, JumpImpulse);
+            rb.velocity = new Vector2(rb.velocity.x, jumpImpulse);
+            coyoteCounter = 0;
         }
     }
 
     public void OnAttack(InputAction.CallbackContext context)
     {
-        if(context.started)
+        if (isDead) return;  // Cek apakah karakter mati sebelum melanjutkan
+
+        if (context.started && !isAttacking && !isDead)
         {
-            animator.SetTrigger(AnimationStrings.AttackTrigger);
+            StartCoroutine(AttackRoutine());
         }
+    }
+
+    private IEnumerator AttackRoutine()
+    {
+        isAttacking = true;
+        animator.SetBool(AnimationStrings.canMove, false);
+        animator.SetTrigger(AnimationStrings.AttackTrigger);
+        rb.velocity = Vector2.zero;
+
+        yield return new WaitForSeconds(0.5f);
+
+        isAttacking = false;
+        animator.SetBool(AnimationStrings.canMove, true);
+    }
+
+    // Dipanggil dari script Health.cs saat player mati
+    public void SetDead()
+    {
+        isDead = true;
+        rb.velocity = Vector2.zero;
+        moveInput = Vector2.zero;
+
+        animator.SetBool(AnimationStrings.IsMoving, false);
+        animator.SetBool(AnimationStrings.IsRunning, false);
+        animator.SetBool(AnimationStrings.canMove, false);
     }
 }
